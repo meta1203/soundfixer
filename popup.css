@@ -28,21 +28,21 @@ header img {
 	margin-left: 0.8em;
 	vertical-align: middle;
 }
-#elements-list, #all-elements, #individual-elements, .info {
+#elements-list, #all-elements, #individual-elements, #save, #save-list, .info {
 	background: rgb(250, 250, 250);
 	list-style-type: none;
 	margin: 0;
 	padding: 0;
 }
-#individual-elements summary {
+#individual-elements, #save summary {
 	margin-bottom: 0.6rem;
 }
-#elements-list li, #all-elements, #individual-elements {
+#elements-list li, #all-elements, #individual-elements, #save, #save-list li {
 	margin: 0;
 	padding: 1rem 1rem 0.6rem;
 	border-bottom: 1px solid rgb(235, 235, 235);
 }
-#individual-elements li {
+#individual-elements li,#save li {
 	padding-left: 0;
 	padding-right: 0;
 }
@@ -65,7 +65,7 @@ header img {
 .checkboxes label {
 	margin-right: 0.8rem;
 }
-label {
+label:not(.save-label) {
 	display: flex;
 	padding: 0.2rem 0;
 }
@@ -126,10 +126,10 @@ label input[type=number] {
 	header img {
 		filter: invert();
 	}
-	#elements-list, #all-elements, #individual-elements, .info {
+	#elements-list, #all-elements, #individual-elements, #save, #save-list, .info {
 		background: rgb(40, 40, 40);
 	}
-	#elements-list li, #all-elements, #individual-elements {
+	#elements-list li, #all-elements, #individual-elements, #save, #save-list {
 		border-color: rgb(70, 70, 70);
 	}
 	.info {

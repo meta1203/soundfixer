@@ -36,6 +36,14 @@
 	</template>
 	<div id="all-elements">
 	</div>
+  <details id="save">
+		<summary>Save settings</summary>
+		<ul id="save-list">
+      <input type="checkbox" id="save-sub"><label for="save-sub" class="save-label">Save settings for ${hostname}</label>
+      <br />
+      <input type="checkbox" id="save-tld"><label for="save-tld" class="save-label">Save settings for ${tld}</label>
+		</ul>
+	</details>
 	<details id="individual-elements">
 		<summary>Control individual media elements</summary>
 		<ul id="elements-list">

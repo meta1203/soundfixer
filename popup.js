@@ -6,9 +6,13 @@ const elementsList = document.getElementById('elements-list')
 const allElements = document.getElementById('all-elements')
 const indivElements = document.getElementById('individual-elements')
 const elementsTpl = document.getElementById('elements-tpl')
+let hostname = null
+let tld = null
+const saveSub = document.getElementById('save-sub')
+const saveTld = document.getElementById('save-tld')
 
 function applySettings (fid, elid, newSettings) {
-	return browser.tabs.executeScript(tid, { frameId: fid, code: `(function () {
+	return Promise.all([browser.tabs.executeScript(tid, { frameId: fid, code: `(function () {
 		const el = document.querySelector('[data-x-soundfixer-id="${elid}"]')
 		if (!el.xSoundFixerContext) {
 			el.xSoundFixerContext = new AudioContext()
@@ -51,12 +55,61 @@ function applySettings (fid, elid, newSettings) {
 			mono: el.xSoundFixerContext.destination.channelCount == 1,
 			flip: el.xSoundFixerFlipped,
 		}
-	})()` })
+	})()` }), saveSettings(newSettings)])
+}
+
+function saveSettings() {
+  const newSettings = {
+    gain: (document.querySelector('.element-gain').value || 1),
+    flip: document.querySelector('.element-flip').checked,
+    mono: document.querySelector('.element-mono').checked,
+    pan: document.querySelector('.element-pan').value || 0
+  }
+  const toSave = {}
+  if (saveTld.checked) {
+    toSave[tld] = newSettings
+  } else if (saveSub.checked) {
+    toSave[hostname] = newSettings
+  } else {
+    return null
+  }
+  console.log("saving...", toSave)
+  return browser.storage.local.set(toSave)
+}
+
+function loadSettings() {
+  return browser.storage.local.get([tld, hostname]).then(result => result[tld] || result[hostname])
+}
+
+function tldToggle() {
+  console.log("toggled tld: " + saveTld.checked)
+  if (saveTld.checked) {
+    saveSub.checked = false
+    saveSub.disabled = true
+    saveSub.dispatchEvent(new Event("change"))
+    saveSettings()
+  } else {
+    saveSub.disabled = false
+    browser.storage.local.remove(tld)
+  }
+}
+
+function subToggle() {
+  console.log("toggled subdomain: " + saveSub.checked)
+  if (saveSub.checked) {
+    saveSettings()
+  } else {
+    browser.storage.local.remove(hostname)
+  }
 }
 
 browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 	tid = tabs[0].id
-	return browser.webNavigation.getAllFrames({ tabId: tid }).then(frames =>
+  const prom1 = browser.tabs.executeScript(tid, { code: `window.location.hostname` }).then(hn => {
+    hostname = hn[0]
+    tld = "*." + hostname.split(".").slice(-2).join(".")
+  })
+	const prom2 = browser.webNavigation.getAllFrames({ tabId: tid }).then(frames =>
 		Promise.all(frames.map(frame => {
 			const fid = frame.frameId
 			return browser.tabs.executeScript(tid, { frameId: fid, code: `(function () {
@@ -76,13 +129,24 @@ browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 			})()` }).then(result => frameMap.set(fid, result[0]))
 			.catch(err => console.error(`tab ${tid} frame ${fid}`, err))
 		}))
-	)
+  )
+  return Promise.all([prom1, prom2])
 }).then(_ => {
+  // add checkboxes to save dropdown
+  saveSub.addEventListener('change', subToggle)
+  saveTld.addEventListener('change', tldToggle)
+  // update checkboxes to correct domain names
+  document.querySelector('[for="save-sub"]').innerHTML = `Save settings for ${hostname}`
+  document.querySelector('[for="save-tld"]').innerHTML = `Save settings for ${tld}`
+  // load saved settings
+  return loadSettings()
+}).then(loadedSettings => {
+  console.log(loadedSettings)
 	elementsList.textContent = ''
 	let elCount = 0
 	for (const [fid, els] of frameMap) {
 		for (const [elid, el] of els) {
-			const settings = el.settings || {}
+			const settings = el.settings || loadedSettings || {}
 			const node = document.createElement('li')
 			node.appendChild(document.importNode(elementsTpl.content, true))
 			node.dataset.fid = fid
@@ -177,6 +241,7 @@ browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 				gainNumberInput.value = '' + value
 			}
 			gain.addEventListener('input', _ => applyGain(gain.value))
+      gain.addEventListener('change', saveSettings)
 			gainNumberInput.addEventListener('input', function () {
 				if (+this.value > +this.getAttribute('max'))
 					this.value = this.getAttribute('max')
@@ -201,6 +266,7 @@ browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 				panNumberInput.value = '' + value
 			}
 			pan.addEventListener('input', _ => applyPan(pan.value))
+      pan.addEventListener('change', saveSettings)
 			panNumberInput.addEventListener('input', function () {
 				if (+this.value > +this.getAttribute('max'))
 					this.value = this.getAttribute('max')
@@ -219,6 +285,7 @@ browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 					}
 				}
 			})
+      mono.addEventListener('change', saveSettings)
 			const flip = node.querySelector('.element-flip')
 			flip.checked = false
 			flip.addEventListener('change', _ => {
@@ -230,6 +297,7 @@ browser.tabs.query({ currentWindow: true, active: true }).then(tabs => {
 					}
 				}
 			})
+      flip.addEventListener('change', saveSettings);
 			node.querySelector('.element-reset').onclick = function () {
 				gain.value = 1
 				gain.parentElement.querySelector('.element-gain-num').value = '' + gain.value
